@@ -1,0 +1,657 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<title>Stimmführung — Akkorde, die nicht springen</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="Akkordsymbole zu geführten Voicings: jede Stimme wandert so wenig wie möglich. Hörbar im Browser, als MIDI-Datei speicherbar — ohne Bibliothek." />
+
+<style>
+  :root {
+    --grund: #F2F0EC;
+    --feld:  #FBFAF8;
+    --tief:  #E5E1DA;
+    --linie: #CFC8BC;
+    --tinte: #1A1712;
+    --leise: #6B6357;
+    --gefuehrt: #146B5C;
+    --stur:     #A8442A;
+    --taste:    #FFFFFF;
+    --taste-s:  #2A251D;
+    --schatten: 0 1px 0 rgba(26,23,18,.05), 0 10px 24px -16px rgba(26,23,18,.5);
+    --f-fest: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, "DejaVu Sans Mono", monospace;
+    --f-text: -apple-system, "Segoe UI Variable Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --grund: #14120E; --feld: #1C1914; --tief: #0E0C09; --linie: #332D24;
+      --tinte: #E8E2D6; --leise: #9A8F7D;
+      --gefuehrt: #4FBFA8; --stur: #E0785C;
+      --taste: #B9B1A4; --taste-s: #2A251D;
+      --schatten: 0 1px 0 rgba(255,255,255,.03), 0 12px 30px -18px #000;
+    }
+  }
+  :root[data-theme="dark"] {
+    --grund: #14120E; --feld: #1C1914; --tief: #0E0C09; --linie: #332D24;
+    --tinte: #E8E2D6; --leise: #9A8F7D;
+    --gefuehrt: #4FBFA8; --stur: #E0785C;
+    --taste: #B9B1A4; --taste-s: #2A251D;
+    --schatten: 0 1px 0 rgba(255,255,255,.03), 0 12px 30px -18px #000;
+  }
+
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--grund); color:var(--tinte);
+    font-family:var(--f-text); font-size:15px; line-height:1.55; -webkit-font-smoothing:antialiased; }
+  .blatt { max-width:1120px; margin:0 auto;
+    padding: clamp(20px,4vw,44px) clamp(14px,3vw,28px) 64px;
+    display:flex; flex-direction:column; gap:18px; }
+
+  .marke { font-family:var(--f-fest); font-size:10px; letter-spacing:.2em; text-transform:uppercase;
+    color:var(--leise); display:flex; gap:12px; align-items:center; margin:0; }
+  .marke::after { content:""; flex:1; height:1px; background:var(--linie); }
+  h1 { font-family:var(--f-fest); font-weight:700; font-size:clamp(24px,4.2vw,40px);
+    line-height:1.06; letter-spacing:-.03em; margin:0; text-wrap:balance; }
+  h1 span { color:var(--gefuehrt); }
+  .vorspann { max-width:70ch; color:var(--leise); margin:0; }
+  .vorspann b { color:var(--tinte); font-weight:600; }
+
+  .leiste { display:flex; gap:8px; flex-wrap:wrap; align-items:center;
+    background:var(--feld); border:1px solid var(--linie); padding:9px 11px; box-shadow:var(--schatten); }
+  .kl { font-family:var(--f-fest); font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--leise); }
+  button, select, input { font-family:var(--f-fest); font-size:12px; color:var(--tinte); background:var(--grund);
+    border:1px solid var(--linie); border-radius:0; padding:6px 10px; letter-spacing:.03em; }
+  button, select { cursor:pointer; }
+  button:hover, select:hover { border-color:var(--gefuehrt); }
+  button:active { background:var(--tief); }
+  button:disabled { opacity:.45; cursor:default; }
+  button.haupt { background:var(--gefuehrt); border-color:var(--gefuehrt); color:var(--feld); }
+  input[type=text] { background:var(--tief); min-width:min(420px, 60vw); }
+  :focus-visible { outline:2px solid var(--gefuehrt); outline-offset:2px; }
+
+  .kasten { background:var(--feld); border:1px solid var(--linie); box-shadow:var(--schatten);
+    display:flex; flex-direction:column; min-width:0; }
+  .kasten-kopf { display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+    padding:8px 11px; border-bottom:1px solid var(--linie); }
+  .kasten-leib { padding:11px; display:flex; flex-direction:column; gap:12px; min-width:0; }
+
+  .satz { display:flex; flex-direction:column; gap:2px; }
+  .akkord {
+    display:grid; grid-template-columns: 92px 1fr 150px 74px; gap:10px; align-items:center;
+    padding:6px 8px; border:1px solid transparent;
+  }
+  .akkord:nth-child(odd) { background:var(--tief); }
+  .akkord.aktiv { border-color:var(--gefuehrt); }
+  .akkord .name { font-family:var(--f-fest); font-size:14px; font-weight:600; }
+  .akkord .noten { font-family:var(--f-fest); font-size:12.5px; color:var(--leise); }
+  .akkord .weg { font-family:var(--f-fest); font-size:11.5px; color:var(--leise); text-align:right; }
+  @media (max-width: 760px) {
+    .akkord { grid-template-columns: 1fr 1fr; }
+    .klaviatur { grid-column: 1 / -1; }
+  }
+
+  /* Klaviatur: zeigt die Lage, nicht nur die Namen */
+  .klaviatur { position:relative; height:34px; background:var(--tief); border:1px solid var(--linie); }
+  .klaviatur .weiss, .klaviatur .schwarz { position:absolute; top:0; }
+  .klaviatur .weiss { height:100%; border-right:1px solid var(--linie); }
+  .klaviatur .schwarz { height:62%; background:var(--taste-s); opacity:.22; }
+  .klaviatur .an { background:var(--gefuehrt); opacity:1; }
+  .klaviatur .an.schwarz { background:var(--gefuehrt); }
+
+  .zahlen { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:1px;
+    background:var(--linie); border:1px solid var(--linie); }
+  .zahl { background:var(--feld); padding:8px 10px; }
+  .zahl .l { font-family:var(--f-fest); font-size:9.5px; letter-spacing:.13em; text-transform:uppercase; color:var(--leise); }
+  .zahl .n { font-family:var(--f-fest); font-size:19px; font-variant-numeric:tabular-nums; }
+  .zahl .n.gut { color:var(--gefuehrt); } .zahl .n.stur { color:var(--stur); }
+
+  table.liste { border-collapse:collapse; width:100%; font-family:var(--f-fest); font-size:12px; }
+  table.liste th, table.liste td { border-bottom:1px solid var(--linie); padding:5px 7px; text-align:left; }
+  table.liste th { color:var(--leise); font-weight:400; font-size:10px; letter-spacing:.1em; text-transform:uppercase; }
+
+  .noten { display:grid; grid-template-columns:repeat(auto-fit,minmax(270px,1fr)); gap:18px; margin-top:6px; }
+  .noten section { background:var(--feld); border:1px solid var(--linie); padding:12px 14px; box-shadow:var(--schatten); }
+  .noten h3 { font-family:var(--f-fest); font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--leise); margin:0 0 6px; font-weight:400; }
+  .noten p { margin:0; font-size:14px; }
+  code { font-family:var(--f-fest); font-size:12.5px; background:var(--tief); padding:1px 4px; }
+  .fuss { color:var(--leise); font-size:13px; border-top:1px solid var(--linie); padding-top:12px; }
+  .fuss a { color:var(--gefuehrt); }
+  .hinweis { font-family:var(--f-fest); font-size:11px; color:var(--leise); }
+</style>
+</head>
+<body>
+<main class="blatt">
+
+  <p class="marke">Blatt · Musik</p>
+  <h1>Stimmführung — Akkorde, die nicht <span>springen</span></h1>
+  <p class="vorspann">
+    Akkorde in Grundstellung aneinanderzureihen ist naheliegend und klingt nach Anfänger: Bei
+    jedem Wechsel ziehen alle Stimmen gleichzeitig um. Gut klingt es, wenn <b>jede Stimme so
+    wenig wie möglich wandert</b> — gemeinsame Töne bleiben liegen, der Rest rückt einen Halbton
+    weiter. Hier ist beides zu hören und der Unterschied in Halbtönen ausgezählt.
+  </p>
+
+  <div class="leiste">
+    <span class="kl">Akkorde</span>
+    <input type="text" id="folge" value="Cmaj7 A7 Dm7 G7 Cmaj7 A7 Dm7 G7" spellcheck="false" aria-label="Akkordfolge" />
+    <select id="beispiele" aria-label="Beispiel wählen">
+      <option value="">Beispiele …</option>
+      <option value="Cmaj7 A7 Dm7 G7 Cmaj7 A7 Dm7 G7">Jazz-Kadenz</option>
+      <option value="C G Am F C G F F">Pop</option>
+      <option value="Am F C G Am F Dm E7">Moll</option>
+      <option value="Amaj7 F#m7 Bm7 E7 Amaj7 F#m7 Bm7 E7">Bossa</option>
+      <option value="C7 F7 C7 C7 F7 F7 C7 A7 Dm7 G7 C7 G7">Blues</option>
+      <option value="Cmaj7 C/E Fmaj7 G7sus4 G7 Am7 Dm7 G7 Cmaj7">Gemischt mit Bassnoten</option>
+    </select>
+    <span class="kl" style="margin-left:6px">Tempo</span>
+    <input type="text" id="bpm" value="92" size="4" aria-label="Tempo in bpm" />
+    <button id="b-spielen" class="haupt">Anhören</button>
+    <button id="b-stur">Zum Vergleich in Grundstellung</button>
+    <button id="b-midi">MIDI speichern</button>
+    <span style="flex:1"></span>
+    <button id="b-thema">Ansicht</button>
+  </div>
+
+  <div class="kasten">
+    <div class="kasten-kopf">
+      <span class="kl">Der Satz</span>
+      <span class="kl" id="lage" style="margin-left:auto"></span>
+    </div>
+    <div class="kasten-leib">
+      <div class="zahlen" id="zahlen"></div>
+      <div class="satz" id="satz"></div>
+      <p class="hinweis" id="hinweis"></p>
+    </div>
+  </div>
+
+  <div class="kasten">
+    <div class="kasten-kopf">
+      <span class="kl">Beweis statt Behauptung</span>
+      <button id="b-pruefen" class="haupt" style="margin-left:auto">Prüfen</button>
+    </div>
+    <div class="kasten-leib">
+      <p style="margin:0;color:var(--leise);font-size:14px">
+        Geprüft wird, was man nicht hört: ob die Akkordsymbole richtig gelesen werden, ob die
+        Führung nie längere Wege erzeugt als die Grundstellung, ob bei wechselnder Stimmenzahl
+        überhaupt ein Satz entsteht — und ob die geschriebene MIDI-Datei sich selbst wieder
+        lesen lässt, ohne dass ein Ton hängen bleibt.
+      </p>
+      <table class="liste" id="pruef"><tbody></tbody></table>
+      <p class="kl" id="pruef-fuss">noch nicht geprüft</p>
+    </div>
+  </div>
+
+  <div class="noten">
+    <section>
+      <h3>Wie geführt wird</h3>
+      <p>
+        Für jeden Akkord werden alle Lagen zwischen G3 und C6 aufgezählt und die günstigste
+        gewählt. In die Bewertung gehen vier Dinge: der <b>Weg</b> aller Stimmen, die
+        <b>Lage</b> (der Schwerpunkt soll um G4 bleiben), die <b>Spreizung</b> und
+        <b>Reibungen unten</b>.
+      </p>
+    </section>
+    <section>
+      <h3>Warum Reibungen unten stören</h3>
+      <p>
+        Eine kleine Sekunde zwischen <code>B3</code> und <code>C4</code> macht den Klang
+        matschig; dieselbe Reibung eine Oktave höher ist ein Reiz. Sie wird deshalb nach
+        unten hin zunehmend bestraft — das kostet Bewegung und ist trotzdem richtig.
+        <b>Der kürzeste Weg ist nicht der beste Satz.</b>
+      </p>
+    </section>
+    <section>
+      <h3>Was die Datei enthält</h3>
+      <p>
+        Eine MIDI-Datei im Format 1, byteweise hier erzeugt: Tempo, Klavier, Bass,
+        Schlagzeug. Zeitangaben stehen als <i>Variable Length Quantity</i> — sieben Nutzbits
+        je Byte, das oberste sagt „es folgt noch eines". Der Rest ist geradeaus.
+      </p>
+    </section>
+  </div>
+
+  <p class="fuss">
+    Eine einzelne HTML-Datei. Kein Build, keine Bibliothek, nichts verlässt den Browser.
+    Für die Kommandozeile liegt dasselbe Verfahren als <code>stimmfuehrung.mjs</code> daneben.
+    <span style="display:block;margin-top:8px">
+      Verwandt:
+      <a href="https://ssims437.github.io/plotterblaetter/">Plotterblätter</a> ·
+      <a href="https://ssims437.github.io/redundanz/">Redundanz</a> ·
+      <a href="https://ssims437.github.io/reparatur/">Reparatur</a> ·
+      <a href="https://ssims437.github.io/wuerfel/">Würfel</a> ·
+      <a href="https://ssims437.github.io/rechenwerk/">Rechenwerk</a> ·
+      <a href="https://ssims437.github.io/nachkomma/">Nachkomma</a> ·
+      <a href="https://ssims437.github.io/zeitsprung/">Zeitsprung</a> ·
+      <a href="https://ssims437.github.io/gradtage/">Gradtage</a>
+    </span>
+  </p>
+
+</main>
+
+<script>
+(function () {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+
+  /* ===================== Akkordsymbole ===================== */
+  const GRUNDTOENE = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11, H: 11 };
+  const QUALITAETEN = {
+    "": [0,4,7], "maj": [0,4,7], "m": [0,3,7], "min": [0,3,7],
+    "dim": [0,3,6], "aug": [0,4,8], "5": [0,7],
+    "6": [0,4,7,9], "m6": [0,3,7,9],
+    "7": [0,4,7,10], "maj7": [0,4,7,11], "m7": [0,3,7,10], "mmaj7": [0,3,7,11],
+    "m7b5": [0,3,6,10], "dim7": [0,3,6,9], "7b5": [0,4,6,10], "7#5": [0,4,8,10],
+    "sus2": [0,2,7], "sus4": [0,5,7], "7sus4": [0,5,7,10],
+    "add9": [0,4,7,14], "madd9": [0,3,7,14],
+    "9": [0,4,7,10,14], "maj9": [0,4,7,11,14], "m9": [0,3,7,10,14],
+    "11": [0,7,10,14,17], "13": [0,4,7,10,14,21], "m11": [0,3,7,10,14,17]
+  };
+
+  function akkordLesen(text) {
+    const m = /^([A-Ha-h])([#b]?)([^/]*)(?:\/([A-Ha-h])([#b]?))?$/.exec(text.trim());
+    if (!m) throw new Error('Kein Akkordsymbol: "' + text + '"');
+    const grundton = (GRUNDTOENE[m[1].toUpperCase()] + (m[2] === "#" ? 1 : m[2] === "b" ? -1 : 0) + 12) % 12;
+    const q = QUALITAETEN[m[3]];
+    if (q === undefined) throw new Error('Unbekannte Akkordart: "' + m[3] + '" in "' + text + '"');
+    let bass = grundton;
+    if (m[4]) bass = (GRUNDTOENE[m[4].toUpperCase()] + (m[5] === "#" ? 1 : m[5] === "b" ? -1 : 0) + 12) % 12;
+    return { name: text.trim(), grundton, toene: q.map((i) => (grundton + i) % 12), bass };
+  }
+
+  /* ===================== Stimmführung ===================== */
+  const UNTEN = 55, OBEN = 84, MITTE = 67;
+
+  function lagen(tk) { const l = []; for (let m = UNTEN; m <= OBEN; m++) if (m % 12 === tk) l.push(m); return l; }
+
+  function kandidaten(tonklassen) {
+    let ergebnis = [[]];
+    for (const tk of tonklassen) {
+      const naechste = [];
+      for (const teil of ergebnis) for (const note of lagen(tk)) {
+        if (teil.indexOf(note) >= 0) continue;
+        naechste.push(teil.concat(note));
+      }
+      ergebnis = naechste;
+    }
+    return ergebnis.map((v) => v.slice().sort((a, b) => a - b));
+  }
+
+  // Weg in Halbtönen; bei ungleicher Stimmenzahl dürfen Reste sich einen Ton teilen
+  function wegVon(vorher, voicing) {
+    let weg = 0;
+    const frei = voicing.slice();
+    for (const alt of vorher) {
+      const quelle = frei.length ? frei : voicing;
+      let bi = 0, b = Infinity;
+      for (let i = 0; i < quelle.length; i++) {
+        const d = Math.abs(quelle[i] - alt);
+        if (d < b) { b = d; bi = i; }
+      }
+      weg += b;
+      if (frei.length) frei.splice(bi, 1);
+    }
+    return weg;
+  }
+
+  function bewerte(voicing, vorher) {
+    const spreizung = voicing[voicing.length - 1] - voicing[0];
+    let strafe = Math.max(0, spreizung - 19) * 2.5;
+    const schwerpunkt = voicing.reduce((s, n) => s + n, 0) / voicing.length;
+    strafe += Math.abs(schwerpunkt - MITTE) * 0.6;
+    for (let i = 1; i < voicing.length; i++) {
+      const abstand = voicing[i] - voicing[i - 1];
+      if (abstand <= 2 && voicing[i - 1] < 64) strafe += (64 - voicing[i - 1]) * (abstand === 1 ? 1.4 : 0.7);
+    }
+    return vorher ? strafe + wegVon(vorher, voicing) : strafe;
+  }
+
+  function satzBauen(akkorde) {
+    const satz = []; let vorher = null;
+    for (const a of akkorde) {
+      let bestes = null, bestwert = Infinity;
+      for (const v of kandidaten(a.toene)) {
+        const w = bewerte(v, vorher);
+        if (w < bestwert) { bestwert = w; bestes = v; }
+      }
+      satz.push({ akkord: a, noten: bestes });
+      vorher = bestes;
+    }
+    return satz;
+  }
+
+  function satzOhneFuehrung(akkorde) {
+    return akkorde.map((a) => ({
+      akkord: a,
+      noten: a.toene.map((tk, i) => {
+        let n = 60 + tk;
+        while (i > 0 && n <= 60 + a.toene[i - 1]) n += 12;
+        return n;
+      })
+    }));
+  }
+
+  function bewegung(satz) {
+    let s = 0;
+    for (let i = 1; i < satz.length; i++) s += wegVon(satz[i - 1].noten, satz[i].noten);
+    return s;
+  }
+
+  const NAMEN = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+  const notenName = (n) => NAMEN[n % 12] + (Math.floor(n / 12) - 1);
+
+  /* ===================== MIDI schreiben ===================== */
+  const vlq = (n) => { const b = [n & 0x7f]; n >>= 7; while (n > 0) { b.unshift((n & 0x7f) | 0x80); n >>= 7; } return b; };
+  const ascii = (s) => Array.from(s, (c) => c.charCodeAt(0));
+
+  function spur(ereignisse) {
+    const sortiert = ereignisse.slice().sort((a, b) => a.tick - b.tick || a.rang - b.rang);
+    const daten = []; let letzter = 0;
+    for (const e of sortiert) { daten.push(...vlq(e.tick - letzter), ...e.bytes); letzter = e.tick; }
+    daten.push(0, 0xff, 0x2f, 0x00);
+    const L = daten.length;
+    return [...ascii("MTrk"), (L >> 24) & 255, (L >> 16) & 255, (L >> 8) & 255, L & 255, ...daten];
+  }
+
+  function midiBauen(satz, bpm) {
+    const ppq = 480, schlaege = 4, proAkkord = ppq * schlaege;
+    const us = Math.round(60000000 / bpm);
+    const tempo = spur([
+      { tick: 0, rang: 0, bytes: [0xff, 0x51, 3, (us >> 16) & 255, (us >> 8) & 255, us & 255] },
+      { tick: 0, rang: 1, bytes: [0xff, 0x58, 4, schlaege, 2, 24, 8] }
+    ]);
+    const klavier = [{ tick: 0, rang: 0, bytes: [0xc0, 0] }];
+    const bass = [{ tick: 0, rang: 0, bytes: [0xc1, 32] }];
+    const drums = [];
+    satz.forEach((s, i) => {
+      const start = i * proAkkord, ende = start + proAkkord - 10;
+      for (const note of s.noten) {
+        klavier.push({ tick: start, rang: 1, bytes: [0x90, note, 74] });
+        klavier.push({ tick: ende, rang: 0, bytes: [0x80, note, 0] });
+      }
+      const b1 = 36 + s.akkord.bass;
+      const b2 = 36 + (s.akkord.toene[2] !== undefined ? s.akkord.toene[2] : s.akkord.bass);
+      bass.push({ tick: start, rang: 1, bytes: [0x91, b1, 88] });
+      bass.push({ tick: start + ppq * 2 - 10, rang: 0, bytes: [0x81, b1, 0] });
+      bass.push({ tick: start + ppq * 2, rang: 1, bytes: [0x91, b2, 78] });
+      bass.push({ tick: ende, rang: 0, bytes: [0x81, b2, 0] });
+      for (let k = 0; k < schlaege; k++) {
+        const t = start + k * ppq, inst = k % 2 === 0 ? 36 : 38;
+        drums.push({ tick: t, rang: 1, bytes: [0x99, 42, k % 2 ? 62 : 80] });
+        drums.push({ tick: t + 20, rang: 0, bytes: [0x89, 42, 0] });
+        drums.push({ tick: t, rang: 1, bytes: [0x99, inst, 92] });
+        drums.push({ tick: t + 20, rang: 0, bytes: [0x89, inst, 0] });
+      }
+    });
+    const spuren = [tempo, spur(klavier), spur(bass), spur(drums)];
+    const kopf = [...ascii("MThd"), 0, 0, 0, 6, 0, 1, 0, spuren.length, (ppq >> 8) & 255, ppq & 255];
+    const alles = kopf.concat(...spuren);
+    return new Uint8Array(alles);
+  }
+
+  /* MIDI zurücklesen — die Prüfung liest die eigene Datei */
+  function midiLesen(bytes, streng) {
+    const sicht = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    let p = 0;
+    const text4 = () => { const s = String.fromCharCode(bytes[p], bytes[p+1], bytes[p+2], bytes[p+3]); p += 4; return s; };
+    if (text4() !== "MThd") throw new Error("Kein MThd-Kopf");
+    const kopfLaenge = sicht.getUint32(p); p += 4;
+    if (kopfLaenge !== 6) throw new Error("Kopflänge ist nicht 6");
+    const format = sicht.getUint16(p); p += 2;
+    const spurZahl = sicht.getUint16(p); p += 2;
+    const ppq = sicht.getUint16(p); p += 2;
+    const spuren = [];
+    for (let s = 0; s < spurZahl; s++) {
+      if (text4() !== "MTrk") throw new Error("Spur " + s + ": kein MTrk");
+      const laenge = sicht.getUint32(p); p += 4;
+      const ende = p + laenge;
+      let tick = 0, status = 0;
+      const ereignisse = [];
+      while (p < ende) {
+        let delta = 0, byte;
+        do { byte = bytes[p++]; delta = (delta << 7) | (byte & 0x7f); } while (byte & 0x80);
+        tick += delta;
+        if (bytes[p] & 0x80) { status = bytes[p]; p++; }
+        const typ = status & 0xf0;
+        if (status === 0xff) {
+          p++;                                  // Meta-Typ
+          let len = 0;
+          do { byte = bytes[p++]; len = (len << 7) | (byte & 0x7f); } while (byte & 0x80);
+          p += len;
+          ereignisse.push({ tick, art: "meta" });
+        } else if (typ === 0x90 || typ === 0x80) {
+          const note = bytes[p++], velo = bytes[p++];
+          ereignisse.push({ tick, art: (typ === 0x90 && velo > 0) ? "an" : "aus", note });
+        } else if (typ === 0xc0 || typ === 0xd0) { p += 1; ereignisse.push({ tick, art: "programm" }); }
+        else { p += 2; ereignisse.push({ tick, art: "sonstiges" }); }
+      }
+      if (p !== ende) throw new Error("Spur " + s + ": Länge passt nicht zum Inhalt");
+      spuren.push(ereignisse);
+    }
+    if (streng && p !== bytes.length) throw new Error((bytes.length - p) + " Byte bleiben übrig");
+    return { format, spurZahl, ppq, spuren, gelesen: p, laenge: bytes.length };
+  }
+
+  /* ===================== Klang im Browser =====================
+     Kein Sampler, sondern drei Sinusanteile je Ton mit schnellem Anschlag und
+     exponentiellem Abklingen — genug, um Stimmführung zu hören. */
+  let ctx = null, laufend = [];
+  function klangKontext() {
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    return ctx;
+  }
+  const frequenz = (note) => 440 * Math.pow(2, (note - 69) / 12);
+
+  function tonSpielen(note, start, dauer, lautstaerke) {
+    const c = klangKontext();
+    const summe = c.createGain();
+    summe.gain.setValueAtTime(0, start);
+    summe.gain.linearRampToValueAtTime(lautstaerke, start + 0.012);
+    summe.gain.exponentialRampToValueAtTime(0.0001, start + dauer);
+    summe.connect(c.destination);
+    [[1, 1], [2, 0.32], [3, 0.12]].forEach(([faktor, anteil]) => {
+      const o = c.createOscillator();
+      o.type = "sine";
+      o.frequency.setValueAtTime(frequenz(note) * faktor, start);
+      const g = c.createGain();
+      g.gain.setValueAtTime(anteil, start);
+      o.connect(g); g.connect(summe);
+      o.start(start); o.stop(start + dauer + 0.05);
+      laufend.push(o);
+    });
+  }
+
+  function spielen(satz, bpm) {
+    stoppen();
+    const c = klangKontext();
+    if (c.state === "suspended") c.resume();
+    const takt = (60 / bpm) * 4;
+    const t0 = c.currentTime + 0.08;
+    satz.forEach((s, i) => {
+      const start = t0 + i * takt;
+      for (const note of s.noten) tonSpielen(note, start, takt * 0.92, 0.13);
+      tonSpielen(36 + s.akkord.bass, start, takt * 0.45, 0.22);
+      tonSpielen(36 + (s.akkord.toene[2] !== undefined ? s.akkord.toene[2] : s.akkord.bass), start + takt / 2, takt * 0.42, 0.18);
+      setTimeout(() => markieren(i), (start - c.currentTime) * 1000);
+    });
+    setTimeout(() => markieren(-1), (t0 - c.currentTime + satz.length * takt) * 1000);
+  }
+
+  function stoppen() {
+    for (const o of laufend) { try { o.stop(); } catch (e) { /* schon beendet */ } }
+    laufend = [];
+    markieren(-1);
+  }
+
+  function markieren(index) {
+    document.querySelectorAll(".akkord").forEach((el, i) => el.classList.toggle("aktiv", i === index));
+  }
+
+  /* ===================== Anzeige ===================== */
+  function klaviatur(noten) {
+    const von = 55, bis = 84;
+    const weisse = [];
+    for (let n = von; n <= bis; n++) if ([0,2,4,5,7,9,11].indexOf(n % 12) >= 0) weisse.push(n);
+    const breite = 100 / weisse.length;
+    let html = '<div class="klaviatur">';
+    weisse.forEach((n, i) => {
+      html += '<div class="weiss' + (noten.indexOf(n) >= 0 ? " an" : "") +
+        '" style="left:' + (i * breite).toFixed(3) + '%;width:' + breite.toFixed(3) + '%;background:' +
+        (noten.indexOf(n) >= 0 ? "var(--gefuehrt)" : "var(--taste)") + '"></div>';
+    });
+    weisse.forEach((n, i) => {
+      const schwarz = n + 1;
+      if (schwarz > bis || [1,3,6,8,10].indexOf(schwarz % 12) < 0) return;
+      html += '<div class="schwarz' + (noten.indexOf(schwarz) >= 0 ? " an" : "") +
+        '" style="left:' + ((i + 1) * breite - breite * 0.3).toFixed(3) + '%;width:' + (breite * 0.6).toFixed(3) + '%"></div>';
+    });
+    return html + "</div>";
+  }
+
+  let AKTUELL = { satz: [], bpm: 92, gefuehrt: true };
+
+  function zeichnen(gefuehrt) {
+    let akkorde;
+    try {
+      akkorde = $("folge").value.trim().split(/\s+/).filter(Boolean).map(akkordLesen);
+    } catch (e) {
+      $("lage").textContent = e.message;
+      $("satz").innerHTML = "";
+      $("zahlen").innerHTML = "";
+      return;
+    }
+    if (akkorde.length === 0) return;
+
+    const satz = gefuehrt ? satzBauen(akkorde) : satzOhneFuehrung(akkorde);
+    const mit = bewegung(satzBauen(akkorde));
+    const ohne = bewegung(satzOhneFuehrung(akkorde));
+    const bpm = Math.min(240, Math.max(40, parseInt($("bpm").value, 10) || 92));
+    AKTUELL = { satz, bpm, gefuehrt };
+
+    $("lage").textContent = akkorde.length + " Akkorde · " + (gefuehrt ? "geführt" : "Grundstellung");
+    $("zahlen").innerHTML =
+      '<div class="zahl"><div class="l">Geführt</div><div class="n gut">' + mit + ' HT</div></div>' +
+      '<div class="zahl"><div class="l">Grundstellung</div><div class="n stur">' + ohne + ' HT</div></div>' +
+      '<div class="zahl"><div class="l">Ersparnis</div><div class="n">' +
+        (ohne > 0 ? Math.round((1 - mit / ohne) * 100) : 0) + ' %</div></div>' +
+      '<div class="zahl"><div class="l">Längster Sprung</div><div class="n">' +
+        groesserSprung(satz) + ' HT</div></div>';
+
+    $("satz").innerHTML = satz.map((s, i) => {
+      const weg = i === 0 ? "—" : wegVon(satz[i - 1].noten, s.noten) + " HT";
+      return '<div class="akkord">' +
+        '<span class="name">' + s.akkord.name + '</span>' +
+        klaviatur(s.noten) +
+        '<span class="noten">' + s.noten.map(notenName).join(" ") + '</span>' +
+        '<span class="weg">' + weg + '</span>' +
+      '</div>';
+    }).join("");
+
+    $("hinweis").textContent = gefuehrt
+      ? "Jede Zeile zeigt, wie weit die Stimmen seit dem vorigen Akkord gewandert sind."
+      : "Grundstellung: jeder Akkord beginnt beim Grundton — daher die weiten Wege.";
+  }
+
+  function groesserSprung(satz) {
+    let max = 0;
+    for (let i = 1; i < satz.length; i++) max = Math.max(max, wegVon(satz[i - 1].noten, satz[i].noten));
+    return max;
+  }
+
+  /* ===================== Prüfung ===================== */
+  function pruefen() {
+    const tb = $("pruef").querySelector("tbody");
+    tb.textContent = "";
+    let fehler = 0;
+    const zeile = (was, gut, text) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = "<td>" + was + "</td><td style='color:" + (gut ? "var(--gefuehrt)" : "var(--stur)") + "'>" + text + "</td>";
+      tb.append(tr);
+      if (!gut) fehler++;
+    };
+
+    const proben = [["C",[0,4,7]], ["Am",[9,0,4]], ["F#m7b5",[6,9,0,4]], ["Bb13",[10,2,5,8,0,7]],
+      ["G7sus4",[7,0,2,5]], ["Cmaj7",[0,4,7,11]], ["Ddim7",[2,5,8,11]]];
+    let falsch = 0;
+    for (const [sym, erw] of proben) if (akkordLesen(sym).toene.join() !== erw.join()) falsch++;
+    zeile("Akkordsymbole", falsch === 0, proben.length + " Symbole gelesen");
+
+    const slash = akkordLesen("C/E");
+    zeile("Bassnote getrennt vom Klang", slash.bass === 4 && slash.grundton === 0, "C/E → Bass E, Grundton C");
+
+    const folgen = ["Cmaj7 A7 Dm7 G7", "C G Am F", "Am F C G", "Amaj7 F#m7 Bm7 E7", "C7 F7 C7 G7"];
+    let schlechter = 0, kuerzer = 0, sG = 0, sS = 0;
+    for (const f of folgen) {
+      const a = f.split(/\s+/).map(akkordLesen);
+      const g = bewegung(satzBauen(a)), s = bewegung(satzOhneFuehrung(a));
+      sG += g; sS += s;
+      if (g > s) schlechter++; else if (g < s) kuerzer++;
+    }
+    zeile("Führung nie länger als Grundstellung", schlechter === 0,
+      kuerzer + " von " + folgen.length + " kürzer · " + sG + " statt " + sS + " Halbtöne");
+
+    let ausserhalb = 0;
+    for (const f of folgen) for (const s of satzBauen(f.split(/\s+/).map(akkordLesen)))
+      for (const n of s.noten) if (n < UNTEN || n > OBEN) ausserhalb++;
+    zeile("Lage im Rahmen", ausserhalb === 0, "alle Töne zwischen " + notenName(UNTEN) + " und " + notenName(OBEN));
+
+    const gemischt = "Cmaj7 C/E F G7sus4 G7 Am Dm7 G C".split(/\s+/).map(akkordLesen);
+    const gs = satzBauen(gemischt);
+    const alle = gs.every((s) => Array.isArray(s.noten) && s.noten.length >= 2);
+    zeile("Wechselnde Stimmenzahl", alle, gemischt.length + " Akkorde von 3 bis 4 Tönen, alle gesetzt");
+
+    const bytes = midiBauen(satzBauen("Cmaj7 A7 Dm7 G7".split(/\s+/).map(akkordLesen)), 92);
+    let gelesen, aufgegangen = true, meldung = "";
+    try { gelesen = midiLesen(bytes, true); }
+    catch (e) { aufgegangen = false; meldung = e.message; gelesen = midiLesen(bytes, false); }
+    zeile("Datei geht byteweise auf", aufgegangen,
+      aufgegangen ? gelesen.gelesen + " von " + gelesen.laenge + " Byte, kein Rest" : meldung);
+    zeile("MIDI-Kopf", gelesen.format === 1 && gelesen.ppq === 480 && gelesen.spurZahl === 4,
+      "Format " + gelesen.format + ", " + gelesen.spurZahl + " Spuren, " + gelesen.ppq + " Ticks je Viertel");
+
+    let offen = 0, anzahl = 0;
+    for (const ev of gelesen.spuren) {
+      const z = new Map();
+      for (const e of ev) {
+        if (e.art === "an") { z.set(e.note, (z.get(e.note) || 0) + 1); anzahl++; }
+        if (e.art === "aus") z.set(e.note, (z.get(e.note) || 0) - 1);
+      }
+      for (const v of z.values()) if (v !== 0) offen++;
+    }
+    zeile("Jeder Ton wird losgelassen", offen === 0, anzahl + " Anschläge, keiner offen");
+
+    $("pruef-fuss").textContent = fehler === 0 ? "Alles bestanden." : fehler + " Prüfung(en) fehlgeschlagen.";
+  }
+
+  /* ===================== Bedienung ===================== */
+  $("b-spielen").addEventListener("click", () => { zeichnen(true); spielen(AKTUELL.satz, AKTUELL.bpm); });
+  $("b-stur").addEventListener("click", () => { zeichnen(false); spielen(AKTUELL.satz, AKTUELL.bpm); });
+  $("b-midi").addEventListener("click", () => {
+    zeichnen(AKTUELL.gefuehrt);
+    const bytes = midiBauen(AKTUELL.satz, AKTUELL.bpm);
+    const url = URL.createObjectURL(new Blob([bytes], { type: "audio/midi" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = (AKTUELL.gefuehrt ? "gefuehrt" : "grundstellung") + ".mid";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+  $("folge").addEventListener("input", () => zeichnen(AKTUELL.gefuehrt));
+  $("bpm").addEventListener("input", () => zeichnen(AKTUELL.gefuehrt));
+  $("beispiele").addEventListener("change", () => {
+    if (!$("beispiele").value) return;
+    $("folge").value = $("beispiele").value;
+    zeichnen(true);
+  });
+  $("b-pruefen").addEventListener("click", pruefen);
+  $("b-thema").addEventListener("click", () => {
+    const jetzt = document.documentElement.getAttribute("data-theme");
+    const dunkel = matchMedia("(prefers-color-scheme: dark)").matches;
+    document.documentElement.setAttribute("data-theme", jetzt ? (jetzt === "dark" ? "light" : "dark") : (dunkel ? "light" : "dark"));
+  });
+  window.addEventListener("keydown", (e) => { if (e.key === "Escape") stoppen(); });
+
+  zeichnen(true);
+})();
+</script>
+</body>
+</html>
