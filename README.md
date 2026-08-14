@@ -99,6 +99,27 @@ Eine MIDI-Datei ist ein Kopf-Chunk und mehrere Spur-Chunks. Zeitangaben stehen a
 eines". 480 wird zu `83 60`, 100 000 zu `86 8D 20`. Das ist die einzige Eigenwilligkeit —
 der Rest ist Byte für Byte geradeaus.
 
+## Im Browser
+
+Dasselbe Verfahren steckt self-contained in [`index.html`](index.html) — dort ist es
+**hörbar**: ein Knopf spielt den geführten Satz, ein zweiter dieselbe Folge in
+Grundstellung, dazu eine Klaviatur je Akkord und ein Download der MIDI-Datei.
+
+### → [Öffnen](https://ssims437.github.io/stimmfuehrung/)
+
+Der Satzalgorithmus liegt damit zweimal vor — in der Kommandozeilenfassung und im Blatt.
+Das ist bewusst so: Ein Blatt soll einzeln weitergegeben werden können und dann noch
+funktionieren, ohne Node und ohne Build.
+
 ## Lizenz
 
 [MIT](LICENSE) — nimm es, zerleg es, bau was Besseres.
+
+Verwandt: [Plotterblätter](https://github.com/ssims437/plotterblaetter) ·
+[Redundanz](https://github.com/ssims437/redundanz) ·
+[Reparatur](https://github.com/ssims437/reparatur) ·
+[Würfel](https://github.com/ssims437/wuerfel) ·
+[Rechenwerk](https://github.com/ssims437/rechenwerk) ·
+[Nachkomma](https://github.com/ssims437/nachkomma) ·
+[Zeitsprung](https://github.com/ssims437/zeitsprung) ·
+[Gradtage](https://github.com/ssims437/gradtage)
