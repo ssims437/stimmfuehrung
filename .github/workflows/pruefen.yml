@@ -1,0 +1,37 @@
+name: Prueflauf
+
+# Der Pruefknopf im Blatt ist der Test. Hier wird er bei jedem Push gedrueckt —
+# im echten Browser, an derselben Datei, die auch veroeffentlicht wird.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    # einmal im Monat, damit Browser-Aenderungen auffallen und nicht erst beim
+    # naechsten Commit in einem halben Jahr
+    - cron: "0 6 1 * *"
+
+jobs:
+  pruefen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Playwright holen
+        run: |
+          npm install --no-save --no-audit --no-fund playwright@1.47.2
+          npx playwright install --with-deps chromium
+
+      - name: Prueflauf im Browser druecken
+        run: node .github/pruefen.mjs
+
+      - name: Prueflauf der Kommandozeilen-Fassung
+        # dieselbe Logik doppelt geschrieben (Blatt und CLI) — dann muss auch
+        # beides einzeln nachgewiesen werden
+        run: node stimmfuehrung.mjs --pruefen
