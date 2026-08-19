@@ -52,7 +52,7 @@
   h1 { font-family:var(--f-fest); font-weight:700; font-size:clamp(24px,4.2vw,40px);
     line-height:1.06; letter-spacing:-.03em; margin:0; text-wrap:balance; }
   h1 span { color:var(--gefuehrt); }
-  .vorspann { max-width:70ch; color:var(--leise); margin:0; }
+  .vorspann { max-width:70ch; color:var(--leise); margin:0 auto; text-align:center; }
   .vorspann b { color:var(--tinte); font-weight:600; }
 
   .leiste { display:flex; gap:8px; flex-wrap:wrap; align-items:center;
@@ -117,6 +117,11 @@
   .fuss { color:var(--leise); font-size:13px; border-top:1px solid var(--linie); padding-top:12px; }
   .fuss a { color:var(--gefuehrt); }
   .hinweis { font-family:var(--f-fest); font-size:11px; color:var(--leise); }
+
+  /* PFLEGE: breite-schirme */
+  @media (min-width: 1500px) { .blatt { max-width: 1360px; } }
+  @media (min-width: 1800px) { .blatt { max-width: 1560px; } }
+  @media (min-width: 2200px) { .blatt { max-width: 1800px; } }
 </style>
 </head>
 <body>
@@ -220,6 +225,32 @@
 
 </main>
 
+<script>
+/* PFLEGE: schaerfe */
+(function () {
+  "use strict";
+  const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+  if (dpr <= 1.01) return;
+  const wb = Object.getOwnPropertyDescriptor(HTMLCanvasElement.prototype, "width");
+  const hb = Object.getOwnPropertyDescriptor(HTMLCanvasElement.prototype, "height");
+  const roh = HTMLCanvasElement.prototype.getContext;
+  HTMLCanvasElement.prototype.getContext = function (art, ...rest) {
+    const g = roh.call(this, art, ...rest);
+    if (art !== "2d" || this.__scharf) return g;
+    this.__scharf = true;
+    let lw = wb.get.call(this), lh = hb.get.call(this);
+    const anlegen = () => {
+      wb.set.call(this, Math.round(lw * dpr));
+      hb.set.call(this, Math.round(lh * dpr));
+      roh.call(this, "2d").setTransform(dpr, 0, 0, dpr, 0, 0);   // Größe setzen löscht den Zustand
+    };
+    Object.defineProperty(this, "width",  { get: () => lw, set: (v) => { lw = v; anlegen(); }, configurable: true });
+    Object.defineProperty(this, "height", { get: () => lh, set: (v) => { lh = v; anlegen(); }, configurable: true });
+    anlegen();
+    return g;
+  };
+})();
+</script>
 <script>
 (function () {
   "use strict";
