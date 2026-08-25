@@ -122,6 +122,16 @@
   @media (min-width: 1500px) { .blatt { max-width: 1360px; } }
   @media (min-width: 1800px) { .blatt { max-width: 1560px; } }
   @media (min-width: 2200px) { .blatt { max-width: 1800px; } }
+
+  /* PFLEGE: schmalschirm */
+  @media (max-width: 700px) {
+    table { display: block; max-width: 100%; overflow-x: auto; }
+    select, input[type=text], input[type=number], input[type=search] { max-width: 100%; }
+  }
+
+  /* PFLEGE: klickflaechen */
+  button, select { min-height: 34px; }
+  input[type=range] { height: 26px; }
 </style>
 </head>
 <body>
