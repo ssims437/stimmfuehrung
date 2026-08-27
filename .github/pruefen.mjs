@@ -77,56 +77,80 @@ for (const seite of zuPruefen) {
     else in_ordnung("Verweis auf die Sammelseite vorhanden");
   }
 
-  /* 3. Wenn es einen Prüfknopf gibt: drücken und das Ergebnis lesen. */
+  /* 3. Wenn es einen Prüfknopf gibt: drücken und das Ergebnis lesen.
+        Beide Schritte können auf einen belegten Hauptthread treffen — ein
+        Blatt, das rechnet (Strömung, Zoo), wird binnen 30 Sekunden nicht
+        ruhig. Früher riss dann eine abgeworfene Wartezeit den ganzen Lauf
+        mit Stacktrace ab, und die restlichen Seiten blieben ungemessen:
+        ein Absturz, der wie ein Fehlschlag aussah. Jetzt wird gewartet, wo
+        Warten nützt, und beanstandet, wo wirklich nichts kommt. */
   const knopf = tab.locator("#b-pruefen");
   if (await knopf.count()) {
     const fussWahl = (await tab.locator("#pruef-fuss").count()) ? "#pruef-fuss" : null;
-    const vorher = fussWahl ? (await tab.locator(fussWahl).innerText()).trim() : "";
-    await knopf.click();
+    const lies = async (dauer) => {
+      try { return fussWahl ? (await tab.locator(fussWahl).innerText({ timeout: dauer })).trim() : ""; }
+      catch { return null; }   /* Hauptthread belegt — weiterwarten, nicht abbrechen */
+    };
+    let vorher = await lies(8000);
+    if (vorher === null) vorher = "";
 
-    let text = vorher, ruhig = 0;
-    const frist = Date.now() + GEDULD_MS;
-    while (Date.now() < frist) {
-      await tab.waitForTimeout(500);
-      const jetzt = fussWahl ? (await tab.locator(fussWahl).innerText()).trim() : "";
-      if (jetzt !== vorher && jetzt === text) { if (++ruhig >= 2) break; } else { ruhig = 0; }
-      text = jetzt;
+    let geklickt = true;
+    try {
+      await knopf.click({ timeout: 15000 });
+    } catch {
+      /* Der gewöhnliche Klick wartet, bis die Seite ruhig ist. Rechnet das
+         Blatt schon beim Laden, wird sie nie ruhig — der Knopf ist dann
+         nicht kaputt, nur beschäftigt. Was zählt, ist die Wirkung. */
+      try { await knopf.dispatchEvent("click"); }
+      catch { geklickt = false; meldung(seite, "Prüfknopf weder klickbar noch erreichbar"); }
     }
 
-    if (!fussWahl) {
+    if (geklickt && !fussWahl) {
       in_ordnung("Prüfknopf vorhanden (ohne Ergebniszeile zum Auslesen)");
-    } else if (text === vorher || !text) {
-      meldung(seite, "Prüflauf hat nichts ausgegeben");
-    } else {
-      console.log(`  → ${text.replace(/\s+/g, " ").slice(0, 220)}`);
-      /* Die Blätter melden Fehler in drei Formulierungen: „N Prüfung(en)
-         fehlgeschlagen", „N FEHLER" und „N FALSCHE FÄLLE". Die beiden letzten
-         müssen verankert geprüft werden — sonst schlägt der Erfolgssatz von
-         zeitsprung („252 Prüfungen, kein einziger Fehler") fälschlich an. */
-      const kurz = text.replace(/\s+/g, " ").trim();
-      const gescheitert = /Prüfung\(en\)\s+fehlgeschlagen/i.test(kurz)
-        || /^\d[\d\s.']*\s+(FEHLER|FALSCHE\s+FÄLLE)\.?$/i.test(kurz);
-      if (gescheitert) meldung(seite, `Prüflauf meldet Fehler: ${kurz.slice(0, 200)}`);
-      else in_ordnung("Prüflauf ohne Beanstandung");
+    } else if (geklickt) {
+      let text = vorher, ruhig = 0;
+      const frist = Date.now() + GEDULD_MS;
+      while (Date.now() < frist) {
+        await tab.waitForTimeout(500);
+        const jetzt = await lies(8000);
+        if (jetzt === null) continue;
+        if (jetzt !== vorher && jetzt === text) { if (++ruhig >= 2) break; } else { ruhig = 0; }
+        text = jetzt;
+      }
 
-      /* Zusätzlich markup-unabhängig: rote Zellen in der Prüftabelle. Die
-         Blätter benutzen verschiedene Farbtoken für „falsch"; gemeinsam ist
-         nur, dass sie rot sind. */
-      const rot = await tab.evaluate(() => {
-        const tabellen = ["#pruef", "#pruef-tabelle"].flatMap((s) => [...document.querySelectorAll(s)]);
-        let n = 0;
-        for (const t of tabellen) {
-          for (const zelle of t.querySelectorAll("td")) {
-            const f = getComputedStyle(zelle).color.match(/\d+/g);
-            if (!f) continue;
-            const [r, g, b] = f.map(Number);
-            if (r > 110 && r > g * 1.5 && r > b * 1.5) n++;
+      if (text === vorher || !text) {
+        meldung(seite, "Prüflauf hat nichts ausgegeben");
+      } else {
+        console.log(`  → ${text.replace(/\s+/g, " ").slice(0, 220)}`);
+        /* Die Blätter melden Fehler in drei Formulierungen: „N Prüfung(en)
+           fehlgeschlagen", „N FEHLER" und „N FALSCHE FÄLLE". Die beiden letzten
+           müssen verankert geprüft werden — sonst schlägt der Erfolgssatz von
+           zeitsprung („252 Prüfungen, kein einziger Fehler") fälschlich an. */
+        const kurz = text.replace(/\s+/g, " ").trim();
+        const gescheitert = /Prüfung\(en\)\s+fehlgeschlagen/i.test(kurz)
+          || /^\d[\d\s.']*\s+(FEHLER|FALSCHE\s+FÄLLE)\.?$/i.test(kurz);
+        if (gescheitert) meldung(seite, `Prüflauf meldet Fehler: ${kurz.slice(0, 200)}`);
+        else in_ordnung("Prüflauf ohne Beanstandung");
+
+        /* Zusätzlich markup-unabhängig: rote Zellen in der Prüftabelle. Die
+           Blätter benutzen verschiedene Farbtoken für „falsch"; gemeinsam ist
+           nur, dass sie rot sind. */
+        const rot = await tab.evaluate(() => {
+          const tabellen = ["#pruef", "#pruef-tabelle"].flatMap((s) => [...document.querySelectorAll(s)]);
+          let n = 0;
+          for (const t of tabellen) {
+            for (const zelle of t.querySelectorAll("td")) {
+              const f = getComputedStyle(zelle).color.match(/\d+/g);
+              if (!f) continue;
+              const [r, g, b] = f.map(Number);
+              if (r > 110 && r > g * 1.5 && r > b * 1.5) n++;
+            }
           }
-        }
-        return n;
-      });
-      if (rot > 0) meldung(seite, `${rot} rot markierte Zelle(n) in der Prüftabelle`);
-      else in_ordnung("keine rote Zelle in der Prüftabelle");
+          return n;
+        });
+        if (rot > 0) meldung(seite, `${rot} rot markierte Zelle(n) in der Prüftabelle`);
+        else in_ordnung("keine rote Zelle in der Prüftabelle");
+      }
     }
   } else {
     in_ordnung("kein Prüfknopf vorgesehen — dieses Blatt prüft anders");
